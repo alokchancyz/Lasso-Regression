@@ -1,0 +1,620 @@
+﻿\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{biblatex}
+\usepackage{tikz}
+\usepackage{eso-pic}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+
+% Command to draw border
+\AddToShipoutPictureBG{%
+  \AtPageLowerLeft{%
+    \begin{tikzpicture}[remember picture,overlay]
+      \draw[line width=1pt]
+        (current page.south west) rectangle (current page.north east);
+    \end{tikzpicture}
+  }%
+}
+
+
+% Reduced top margin
+\geometry{left=25mm,right=25mm,top=20mm,bottom=25mm}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+% Header/footer
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\rhead{Feature Selection: Lasso Regression}
+\lhead{M.Sc. Seminar Report}
+\cfoot{\thepage}
+
+% Code listing style
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  showstringspaces=false
+}
+
+% Section formatting
+\titleformat{\chapter}[hang]{\normalfont\huge\bfseries}{\thechapter.}{1em}{}
+\titleformat{\section}[hang]{\normalfont\Large\bfseries}{\thesection.}{0.7em}{}
+\titleformat{\subsection}[hang]{\normalfont\large\bfseries}{\thesubsection.}{0.5em}{}
+
+% Colors for boxes
+\definecolor{bluebox}{RGB}{225,236,246}
+\definecolor{redbox}{RGB}{255,230,230}
+\definecolor{greenbox}{RGB}{230,245,230}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth]{Images/msulogo.png}
+  \label{fig:msulogo}
+\end{figure}
+
+\centering
+{\Huge \bfseries Feature Selection: Spotlight on Lasso Regression \\[1.5ex]}
+
+\vspace{1.2cm}
+{\Large \bfseries SEMINAR REPORT}\\[2ex]
+
+% University block right below "Seminar Report"
+{\bf\Large Department of Statistics \\ 
+Faculty of Science \\ 
+The Maharaja Sayajirao University of Baroda}\\[6ex]
+
+\vspace{2cm}
+
+% Two-column layout for Submitted to / Submitted by
+\begin{minipage}{0.45\textwidth}
+\raggedright
+{\Large \textbf{Submitted to:}}\\[2ex]
+\bf\large Dr. Deepa H. Kandpal \\[1ex] 
+\bf\large Dr. Manisha D. Pandya
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+\raggedleft
+{\Large \textbf{Submitted by:}}\\[2ex]
+\bf\large Jha Alokchandra Shreepati \\[1ex]
+\bf\large M.Sc. (Statistics)
+\end{minipage}
+
+\vfill
+{\large September 2025}
+
+
+\end{titlepage}
+
+
+\begin{abstract}
+High-dimensional data often pose challenges such as multicollinearity, overfitting, and reduced interpretability. 
+This report explores \textbf{Lasso regression} (Least Absolute Shrinkage and Selection Operator) as a solution to these challenges. 
+Lasso extends ordinary least squares by introducing an L1 penalty, which both shrinks coefficients and performs automatic feature selection. 
+
+We build from the statistical foundations of linear regression, discuss the bias–variance tradeoff, and show why regularization is needed. 
+Using both simulated data (experience–salary example) and the real-world diabetes dataset, we demonstrate how Lasso identifies relevant predictors while improving generalization. 
+Comparisons with Ridge regression, experiments across different penalty values, and hyperparameter tuning methods are also presented. 
+
+Our results confirm that Lasso effectively balances bias and variance, produces sparse and interpretable models, and remains a valuable tool for modern data analysis where feature selection is critical.
+\end{abstract}
+
+\tableofcontents
+
+\chapter*{Acknowledgements}
+I express my sincere gratitude to my teachers, Dr. Deepa Kandpal and Dr. Manisha Pandya, for their invaluable guidance and support throughout this project. \\
+I also thank my peers for their constructive feedback during discussions and acknowledge Robert Tibshirani and other authors whose seminal work laid the foundation for this study. \\
+Finally, I extend my appreciation to the developers of open-source statistical software, without which the computational aspects of this work would not have been possible.
+
+
+\chapter{Introduction}
+\section{The Challenge of High-Dimensional Data}
+In the era of big data, researchers and analysts often encounter datasets with numerous potential predictors. Although having more variables might seem advantageous, it introduces significant challenges, including multicollinearity, overfitting, and reduced model interpretability. Traditional regression methods like Ordinary Least Squares (OLS) perform poorly in such scenarios, often producing models with high variance and poor generalization to new data.
+
+\section{The Bias-Variance Tradeoff}
+The fundamental challenge in predictive modeling lies in balancing bias and variance. Simple models with few parameters tend to have high bias but low variance, while complex models can have low bias but high variance. The ideal model achieves an optimal balance between these competing objectives, providing accurate predictions on unseen data.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{Images/ssr_comparison.png}
+  \caption{Visualization of the bias-variance tradeoff}
+  \label{fig:bias-variance}
+\end{figure}
+
+\section{The Need for Regularization}
+Regularization techniques address these challenges by imposing constraints on model parameters during estimation. By penalizing model complexity, these methods reduce overfitting and improve generalization. Lasso regression represents a particularly powerful approach that not only regularizes but also performs feature selection.
+
+\section{Motivation from a Practical Example}
+Consider a hypothetical dataset examining the relationship between work experience and salary. As shown in Figure \ref{fig:experience-salary}, the relationship appears approximately linear, but the true underlying relationship may be more complex.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{Images/data.png}
+  \caption{Hypothetical dataset showing relationship between experience and salary}
+  \label{fig:experience-salary}
+\end{figure}
+
+When we split this data into training and test sets (70:30 ratio) and fit different models, we observe the classic tradeoff between bias and variance. A simple linear model shows high bias but reasonable generalization, while a complex polynomial model (degree 8) shows low bias on training data but high variance on test data, as evidenced by their respective Sum of Squared Residuals (SSR):
+
+\begin{itemize}
+  \item \textbf{Linear model}: Train SSR = 67.75, Test SSR = 19.63
+  \item \textbf{Polynomial model}: Train SSR = 32.83, Test SSR = 50.76
+\end{itemize}
+
+This demonstrates the need for techniques that can balance this tradeoff, which leads us to Lasso regression.
+
+
+\section{Objectives}
+This seminar aims to:
+\begin{itemize}
+  \item Provide a foundation for Lasso regression
+  \item Explain the mathematical mechanisms behind Lasso's feature selection capability
+  \item Demonstrate practical implementation of Lasso on real and simulated data
+  \item Compare Lasso with alternative regularization methods (particularly Ridge regression)
+  \item Evaluate different approaches for hyperparameter tuning in Lasso
+\end{itemize}
+
+\chapter{Theoretical Foundations of Regularization}
+\section{Limitations of Ordinary Least Squares}
+Ordinary Least Squares (OLS) regression minimizes the sum of squared residuals:
+\[ \hat{\beta}_{OLS} = \min_\beta \|y - X\beta\|_2^2 \]
+Although OLS provides unbiased estimates with minimum variance among linear unbiased estimators, it suffers from several limitations:
+\begin{itemize}
+  \item High variance when predictors are correlated
+  \item Tendency to overfit with many predictors
+  \item Lack of feature selection capability
+  \item Poor performance when $p > n$ (more features than observations)
+\end{itemize}
+
+\section{Introduction to Regularized Regression}
+Regularized regression methods address these limitations by adding a penalty term to the OLS objective function. The general form becomes:
+\[ \hat{\beta} = \min_\beta \left\{ \|y - X\beta\|_2^2 + \lambda P(\beta) \right\} \]
+where $\lambda$ is the regularization parameter controlling the penalty strength, and $P(\beta)$ is the penalty function.
+
+\section{Ridge Regression (L2 Regularization)}
+Ridge regression employs an L2 penalty: $P(\beta) = \|\beta\|_2^2 = \sum_{j=1}^p \beta_j^2$. The Ridge solution is:
+\[ \hat{\beta}_{ridge} = \min_\beta \left\{ \|y - X\beta\|_2^2 + \lambda \|\beta\|_2^2 \right\} \]
+Ridge regression shrinks coefficients toward zero but rarely sets them exactly to zero, thus retaining all variables in the model.
+
+\section{Lasso Regression (L1 Regularization)}
+Lasso regression, which stands for \textbf{Least Absolute Shrinkage and Selection Operator}, addresses the limitations of ordinary least squares by incorporating an L1 penalty term. The Lasso optimization problem is formulated as:
+
+\[ \hat{\beta}_{\text{lasso}} = \min_\beta \left\{ \sum_{i=1}^n (y_i - \hat{y}_i)^2 + \lambda \sum_{j=1}^p |\beta_j| \right\} \]
+
+Where:
+\begin{itemize}
+    \item $y_i$ is the observed response for the $i$-th observation
+    \item $\hat{y}_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_p x_{ip}$ is the predicted value
+    \item $\lambda \geq 0$ is the regularization parameter controlling the penalty strength
+    \item $\sum_{j=1}^p |\beta_j| = \|\beta\|_1$ is the L1 norm of the coefficient vector
+\end{itemize}
+
+In matrix notation, this is equivalent to:
+
+\[ \hat{\beta}_{\text{lasso}} = \min_\beta \left\{ \| \mathbf{y} - \mathbf{X}\beta \|_2^2 + \lambda \|\beta\|_1 \right\} \]
+
+\subsection*{Why Lasso Performs Feature Selection}
+The L1 penalty has the unique property that it can drive coefficients exactly to zero, effectively performing feature selection. This occurs because:
+
+\begin{enumerate}
+    \item The L1 penalty is not differentiable at zero, creating "corners" in the constraint region
+    \item These corners tend to intersect with the residual sum of squares (RSS) contours
+    \item When the intersection occurs at a corner, some coefficients are exactly zero
+\end{enumerate}
+
+This contrasts with Ridge regression (L2 regularization), which uses $\|\beta\|_2^2 = \sum_{j=1}^p \beta_j^2$ as penalty. The L2 penalty is differentiable everywhere and produces a smooth constraint region (a sphere) that rarely touches the axes, thus rarely setting coefficients exactly to zero.
+
+\subsection*{Connection to the Bias-Variance Tradeoff}
+As shown in the presentation with the salary-experience example, Lasso helps balance the bias-variance tradeoff:
+
+\begin{itemize}
+    \item When $\lambda = 0$, Lasso reduces to OLS (low bias, high variance)
+    \item As $\lambda$ increases, coefficients shrink toward zero (increased bias, reduced variance)
+    \item At optimal $\lambda$, we achieve the best balance for prediction on new data
+\end{itemize}
+
+The example from the presentation demonstrated this clearly:
+\begin{itemize}
+    \item Simple linear fit: SSR (Train) = 67.75, SSR (Test) = 19.63 (high bias)
+    \item Complex polynomial fit: SSR (Train) = 32.83, SSR (Test) = 50.76 (high variance)
+\end{itemize}
+
+
+\chapter{Mathematical Mechanics of Lasso}
+\section{Geometric Interpretation}
+The Lasso optimization problem can be visualized geometrically. While OLS finds the point that minimizes RSS without constraints, Lasso finds the point that minimizes RSS within an L1-norm constraint (diamond-shaped region). The corners of this diamond tend to "catch" the solution, setting coefficients to zero.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{Images/fig_lasso_ridge.png}
+  \caption{Geometric interpretation of Lasso regression}
+  \label{fig:lasso-geometry}
+\end{figure}
+
+\section{Comparison with Ridge Regression}
+The different behavior of Lasso and Ridge stems from their penalty functions. The L1 penalty (Lasso) has corners that intersect with the RSS contours, often setting coefficients to zero. The L2 penalty (Ridge) is circular and smooth, so it rarely sets coefficients exactly to zero.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Characteristic & Lasso (L1) & Ridge (L2) \\
+\midrule
+Penalty form & $\lambda \sum |\beta_j|$ & $\lambda \sum \beta_j^2$ \\
+Solution geometry & Diamond & Circle \\
+Feature selection & Yes & No \\
+Shrinkage & Yes & Yes \\
+Works for $p > n$ & Yes & Yes \\
+Handling correlated variables & Selects one & Shares weight \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of Lasso and Ridge regression properties}
+\label{tab:lasso-vs-ridge}
+\end{table}
+
+\section{Why Lasso Creates Sparsity}
+The key mechanism behind Lasso's sparsity is the non-differentiability of the L1 norm at zero. This property causes the optimization solution to "hit" the axes, setting coefficients to zero. Mathematically, the subgradient conditions for optimality include:
+\[ \frac{\partial}{\partial \beta_j} \left( \|y - X\beta\|_2^2 + \lambda \|\beta\|_1 \right) = 0 \]
+which leads to conditions that can only be satisfied when some coefficients are exactly zero.
+
+\subsection*{Algebraic Illustration}
+To see why Lasso creates sparsity while Ridge does not, let us look at a simplified case with just one predictor.
+
+For ordinary least squares (OLS), the estimate of $\beta_1$ is:
+\[
+\hat{\beta}_1_{OLS} = \frac{\text{Cov}(x,y)}{\text{Var}(x)}.
+\]
+
+For Ridge regression, the penalty adds $\lambda \beta_1^2$, and the solution becomes:
+\[
+\hat{\beta}_1_{Ridge} = \frac{\text{Cov}(x,y)}{\text{Var}(x) + \lambda}.
+\]
+Here $\lambda$ appears in the denominator. As $\lambda$ grows, $\hat{\beta}_1^{Ridge}$ becomes smaller but never exactly zero (unless $\text{Cov}(x,y)=0$).
+
+For Lasso regression, the penalty adds $\lambda |\beta_1|$. The solution has the form:
+\[
+\hat{\beta}_1_{Lasso} =
+\begin{cases}
+\;\hat{\beta}_1^{OLS} - \frac{\lambda}{2}, & \hat{\beta}_1^{OLS} > \frac{\lambda}{2}, \\[1ex]
+\;\hat{\beta}_1^{OLS} + \frac{\lambda}{2}, & \hat{\beta}_1^{OLS} < -\frac{\lambda}{2}, \\[1ex]
+\;0, & \text{if } |\hat{\beta}_1^{OLS}| \leq \frac{\lambda}{2}.
+\end{cases}
+\]
+
+Here $\lambda$ effectively appears in the numerator, subtracting from the OLS estimate. If the signal is small ($|\hat{\beta}_1^{OLS}|$ not much larger than $\lambda/2$), the estimate becomes exactly zero. This is the key reason Lasso performs feature selection: small coefficients are forced to vanish.
+
+In short:
+\begin{itemize}
+    \item Ridge $\;\;\to$ shrinks coefficients smoothly towards zero, but never eliminates them.
+    \item Lasso $\;\;\to$ shrinks coefficients and can set them \textbf{exactly to zero}.
+\end{itemize}
+
+
+
+\begin{tcolorbox}[colback=blue!5,colframe=blue!40!black,title=Key Insight]
+Lasso performs continuous subset selection by shrinking some coefficients exactly to zero while shrinking others. This makes it particularly useful when we have many predictors but believe only a subset are truly important, as was the case with the diabetes dataset example in the presentation.
+\end{tcolorbox}
+
+\chapter{The Lasso Optimization Process}
+\section{Effect of the regularization parameter \(\lambda\)}
+The Lasso objective (for a linear model with intercept excluded from the penalty) can be written as
+\[
+\hat\beta(\lambda) \;=\; \min_{\beta}\;\|y - X\beta\|_2^2 \;+\; \lambda \|\beta\|_1,
+\]
+where \(X\) is the \(n\times p\) design matrix (columns standardized: mean \(0\) and \(\|X_j\|_2^2 = n\)), and \(\lambda\ge 0\) controls penalty strength.
+
+Intuitively:
+\begin{itemize}
+  \item \(\lambda = 0\) \(\Rightarrow\) ordinary least squares (no shrinkage).
+  \item small \(\lambda\) \(\Rightarrow\) slight shrinkage, many coefficients remain nonzero.
+  \item moderate \(\lambda\) \(\Rightarrow\) some coefficients driven exactly to zero (feature selection).
+  \item very large \(\lambda\) \(\Rightarrow\) all penalized coefficients go to zero (intercept only).
+\end{itemize}
+The optimal \(\lambda\) balances bias (brought by shrinkage) and variance (reduced by shrinkage),
+and is typically chosen by cross-validation or an information criterion.
+
+
+\section{Visualizing the Regularization Path}
+As $\lambda$ varies, we can observe the regularization path showing how coefficients change. Figure \ref{fig:regularization-path} illustrates this concept using our experience-salary example.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{Images/lasso_5.png}
+  \caption{Regularization path showing coefficient values versus $\lambda$}
+  \label{fig:regularization-path}
+\end{figure}
+
+For our example dataset, we can observe how different values of $\lambda$ affect the model:
+\begin{itemize}
+  \item $\lambda = 0.0001$: SSR Train = 44.0, Test = 26.8
+  \item $\lambda = 0.01$: SSR Train = 44.5, Test = 26.4
+  \item $\lambda = 0.1$: SSR Train = 54.1, Test = 23.4
+  \item $\lambda = 1$: SSR Train = 73.2, Test = 29.5
+  \item $\lambda = 10$: SSR Train = 73.1, Test = 30.6
+\end{itemize}
+
+The optimal $\lambda$ value (around 0.1 in this case) provides the best test performance.
+
+\subsection{Recommendations}
+\begin{itemize}
+  \item \textbf{Standardize predictors} before fitting Lasso (mean 0, unit variance). This makes the penalty act comparably across features.
+  \item \textbf{Exclude intercept from penalty} (center \(y\) and \(X\)).
+  \item \textbf{Warm starts:} fit on a decreasing sequence of \(\lambda\) values and use previous solution as initial guess - large speedup.
+  \item \textbf{Check uniqueness:} Lasso solutions can be non-unique if design columns are collinear; interpret selected set with caution in that case.
+\end{itemize}
+
+
+\chapter{Feature Selection with Lasso}
+\section{The Feature Selection Problem}
+Feature selection is a technique used to identify the explanatory variables (features) that have the maximum effect on the response variable. This is particularly important in high-dimensional data settings, where retaining only relevant variables improves model interpretability and performance.
+
+\section{How Lasso Performs Feature Selection}
+Lasso regression naturally performs feature selection through its L1 penalty. Unlike filter methods (which evaluate features individually) or wrapper methods (which search through feature subsets), Lasso performs embedded feature selection as part of the model fitting process.
+
+The key mechanism is Lasso's ability to drive coefficients exactly to zero, effectively removing those features from the model. This property is unique to L1 regularization and is not shared by L2 regularization (Ridge regression).
+
+Lasso performs \emph{embedded} feature selection: the penalty is part of the estimation.
+Important points (easy language):
+\begin{itemize}
+  \item The \(\ell_1\) penalty shrinks small coefficients all the way to zero, removing the corresponding features.
+  \item As \(\lambda\) increases, unimportant features drop out first; strong signals remain longer.
+  \item Lasso tends to choose one variable from a group of strongly correlated variables (it does not average them like Ridge).
+  \item Selected features can be re-estimated by ordinary least squares (refitting) to reduce shrinkage bias: fit OLS on the subset selected by Lasso.
+\end{itemize}
+
+\section{Demonstration with Diabetes Dataset}
+To illustrate Lasso's feature selection capability, we use the classic diabetes dataset containing 442 patients with 10 baseline variables (age, sex, BMI, blood pressure, and six blood serum measurements). The goal is to predict disease progression based on these features.
+
+As we apply increasing $\lambda$ values, we observe how coefficients are affected:
+
+Table \ref{tab:lasso-coefs-csv} shows the value of each of the coefficients when the value of $\lambda$ is increased.
+
+\begin{table}[H]
+  \centering
+   \caption{Coefficients for diabetes features across varying \(\lambda\).}
+   \label{tab:lasso-coefs-csv}
+   \pgfplotstabletypeset[
+     col sep=comma,
+     string type,
+     columns={lambda,age,sex,bmi,bp,s1,s2,s3,s4,s5,s6},
+     columns/lambda/.style={column name={\(\lambda\)},fixed,precision=4},
+     every head row/.style={before row=\toprule,after row=\midrule},
+     every last row/.style={after row=\bottomrule},
+   ]{coefficients_data.csv}
+ \end{table}
+
+\bf Interpreting the table values
+\begin{itemize}
+  \item For small \(\lambda\) (left rows) many coefficients are non-zero—model is more complex.
+  \item As \(\lambda\) increases the small or noisy coefficients shrink to exactly zero (rows with zeros).
+  \item Variables that remain non-zero for large \(\lambda\) are the strongest signals (more important).
+  \item To produce a final interpretable model, consider:
+    \begin{enumerate}
+      \item selecting \(\lambda\) by cross-validation (Chapter~\ref{chap:hyperparam}),
+      \item examining coefficient stability across bootstrap samples or repeated CV,
+      \item refitting OLS on the selected subset to reduce bias.
+    \end{enumerate}
+\end{itemize}
+
+\bf Performing feature selection 
+\begin{itemize}
+  \item At $\lambda = 0$ (OLS): All coefficients are non-zero, R² = 0.44
+  \item At $\lambda = 0.1$: Some coefficients reduced, R² = 0.43
+  \item At $\lambda = 1$: Several coefficients become zero, R² = 0.33
+  \item At $\lambda = 10$: Most coefficients zero, R² = -0.01
+\end{itemize}
+
+Figure \ref{fig:coefficient_paths} shows the coefficient paths as $\lambda$ increases, clearly demonstrating how Lasso selects features by driving irrelevant coefficients to zero.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{Images/lasso_coefs.png}
+  \caption{Coefficient paths for diabetes dataset features as $\lambda$ increases}
+  \label{fig:coefficient_paths}
+\end{figure}
+The figure above illustrates the effect of the Lasso penalty parameter $\lambda$ on the regression coefficients. 
+When $\lambda = 0$, the model reduces to ordinary least squares (OLS), and all predictors are included with potentially 
+large coefficients, yielding an $R^2$ score of $0.44$. As $\lambda$ increases to $0.1$, the coefficients begin to shrink, 
+and some variables (e.g., $s1$, $s3$, $s6$) are reduced towards zero, reflecting the feature selection property of Lasso, 
+while predictive accuracy ($R^2 = 0.43$) remains nearly unchanged. At $\lambda = 1$, only a few predictors (notably \texttt{bmi}, \texttt{bp}, and $s5$) remain active, while the rest are set exactly to zero, producing a sparser model with a moderate decrease in $R^2$ ($0.33$). 
+Finally, at $\lambda = 10$, all coefficients are shrunk to zero, resulting in a degenerate model with no explanatory 
+power ($R^2 \approx -0.01$). This progression highlights the bias–variance tradeoff in Lasso regression: as $\lambda$ increases, 
+model complexity decreases, variance is reduced, but bias increases, and predictive accuracy may eventually deteriorate.
+
+\subsection{Practical notes on selection stability}
+Because Lasso can be sensitive to data perturbations (especially when predictors are correlated), consider:
+\begin{itemize}
+  \item \textbf{Stability selection} (subsampling + Lasso): variables consistently selected across subsamples are more reliable.
+  \item \textbf{Elastic Net} when groups of correlated predictors should be kept together (mix of \(\ell_1\) and \(\ell_2\)).
+  \item \textbf{Refit by OLS} on the selected subset to obtain unbiased coefficient estimates for interpretation.
+\end{itemize}
+
+
+\chapter{Hyperparameter Tuning in Lasso}
+\label{chap:hyperparam}
+
+\section{The importance of \(\lambda\) selection}
+Choosing \(\lambda\) affects both predictive accuracy and sparsity. The usual goal is to find a \(\lambda\) that gives good out-of-sample performance while keeping the model simple and stable.
+
+Three common approaches are:
+\begin{enumerate}
+  \item Cross-validation (preferred for prediction-oriented tasks).
+  \item Information criteria (AIC, BIC) adapted to penalized models (useful for selection/inference oriented tasks).
+  \item Visualization of the regularization path (diagnostic, human-in-the-loop).
+\end{enumerate}
+
+\section{Cross-Validation (K-fold)}
+\begin{enumerate}
+  \item Split the data into \(K\) roughly equal folds.
+  \item Choose a grid of \(\lambda\) values (usually on log-scale).
+  \item For each \(\lambda\) and for each fold \(k\):
+    \begin{itemize}
+      \item Fit Lasso on the \(K-1\) training folds.
+      \item Compute validation error (MSE) on fold \(k\).
+    \end{itemize}
+  \item Average the validation error over folds to get CV\(_{\text{MSE}}(\lambda)\).
+  \item Choose \(\hat\lambda_{\min} = \arg\min_\lambda \text{CV}_{\text{MSE}}(\lambda)\).
+  \item \textbf{One-standard-error rule:} compute the standard error of CV at \(\lambda_{\min}\);
+    select the largest \(\lambda\) whose CV error is within one standard error of the minimum.
+    This yields a simpler model with (often) nearly the same performance.
+\end{enumerate}
+
+\subsection{Why use the one-standard-error rule?}
+It favours a sparser model that is statistically indistinguishable (within noise) from the best predictive model,
+improving interpretability and robustness.
+
+\subsection{Nested cross-validation (for honest generalization error)}
+If you will report final test performance after selecting \(\lambda\), use nested CV:
+\begin{itemize}
+  \item Outer CV estimates generalization error.
+  \item Inner CV selects \(\lambda\).
+\end{itemize}
+Nested CV prevents optimistic bias in estimated test error caused by selecting \(\lambda\) on the same data used to assess performance.
+
+\section{AIC and BIC adapted to Lasso}
+For Gaussian linear models, the (approximate) formulas are:
+\[
+\mathrm{AIC}(\lambda) \;=\; n\log\!\Big(\frac{\mathrm{RSS}(\lambda)}{n}\Big) \;+\; 2\,\mathrm{df}(\lambda),
+\]
+\[
+\mathrm{BIC}(\lambda) \;=\; n\log\!\Big(\frac{\mathrm{RSS}(\lambda)}{n}\Big) \;+\; \log(n)\,\mathrm{df}(\lambda),
+\]
+where \(\mathrm{RSS}(\lambda)=\sum_{i=1}^n (y_i - \hat y_i(\lambda))^2\) and \(\mathrm{df}(\lambda)\) is the effective degrees of freedom.
+
+\paragraph{Degrees of freedom for Lasso (practical approx.)}
+A simple and commonly used approximation is
+\[
+\mathrm{df}(\lambda) \approx \#\{\text{nonzero coefficients in } \hat\beta(\lambda)\},
+\]
+i.e. the number of selected predictors (optionally plus 1 for the intercept).
+This is not exact in all designs, but it is a practical and interpretable choice for computing AIC/BIC.
+
+\paragraph{Caveats}
+\begin{itemize}
+  \item AIC/BIC use this \(\mathrm{df}\) approximation; their recommendations (which \(\lambda\) to choose) may differ from CV.
+  \item AIC tends to favor more complex models (smaller penalty on complexity) while BIC is more conservative.
+  \item When predictors are highly correlated or \(p\gg n\), these approximations become less reliable.
+\end{itemize}
+
+\section{Combining CV and information criteria}
+A practical workflow:
+\begin{enumerate}
+  \item Use CV (with the one-SE rule) to obtain a predictive \(\lambda_{\text{CV}}\).
+  \item Compute AIC/BIC across the same \(\lambda\)-grid; inspect the selected \(\lambda_{\text{AIC}}\) and \(\lambda_{\text{BIC}}\).
+  \item If \(\lambda_{\text{CV}}\) and \(\lambda_{\text{BIC}}\) differ, prefer \(\lambda_{\text{CV}}\) for prediction, \(\lambda_{\text{BIC}}\) for parsimonious explanation.
+  \item Report both results and, if possible, refit OLS on the final selected features and report stability metrics (bootstrap frequency, selection probability).
+\end{enumerate}
+
+\section{Final practical recommendations}
+\begin{itemize}
+  \item For \textbf{prediction}-focused work: prefer K-fold CV (with one-SE rule for parsimony).
+  \item For \textbf{feature selection/explanation}: consider BIC or stability selection in addition to CV.
+  \item Always \textbf{standardize predictors} and \textbf{report the grid} of \(\lambda\) values used.
+  \item For \textbf{highly correlated predictors}, consider Elastic Net to avoid arbitrary selection between correlated features.
+  \item Validate final selected features using resampling (bootstrap or repeated CV) to quantify selection uncertainty.
+\end{itemize}
+
+
+\chapter{Discussion}
+\section{Interpreting Lasso Results}
+Lasso's feature selection capability enhances model interpretability. In the diabetes dataset analysis, Lasso identified BMI, blood pressure, and blood serum measurements as the most important predictors, consistent with medical knowledge about diabetes progression.
+
+\section{When Lasso Excels}
+Lasso performs particularly well when:
+\begin{itemize}
+  \item The true underlying model is sparse (few relevant predictors)
+  \item Predictors are not extremely correlated
+  \item The goal is both prediction and interpretation
+  \item Computational efficiency is important for high-dimensional data
+\end{itemize}
+
+\section{Limitations and Challenges}
+Lasso has several limitations that practitioners should consider:
+\begin{itemize}
+  \item \textbf{Correlated predictors}: Lasso tends to select one predictor from a group of correlated variables, which may not be desirable in some applications
+  \item \textbf{Inconsistent selection}: Under certain conditions, Lasso may not consistently select the true model
+  \item \textbf{Bias}: The shrinkage introduces bias in coefficient estimates
+  \item \textbf{Standardization sensitivity}: Results depend on proper standardization of predictors
+\end{itemize}
+
+\section{Practical Recommendations}
+Based on our experiments, we recommend:
+\begin{enumerate}
+  \item Always standardize predictors before applying Lasso
+  \item Use cross-validation to select λ, considering the one-standard-error rule for more parsimonious models
+  \item For highly correlated predictors, consider Elastic Net which combines L1 and L2 penalties
+  \item For inference purposes, consider refitting OLS on features selected by Lasso to reduce bias
+  \item Use stability selection or bootstrap methods to assess selection uncertainty
+\end{enumerate}
+
+\chapter{Conclusion and Future Directions}
+\section{Summary of Findings}
+This seminar has demonstrated that Lasso regression provides an effective approach to both prediction and feature selection in high-dimensional settings. By imposing an L1 penalty on regression coefficients, Lasso produces sparse models that enhance interpretability while maintaining predictive accuracy. Our experiments confirmed that Lasso successfully identifies relevant features, particularly when the true model is sparse and predictors are not excessively correlated.
+
+\section{Future Research Directions}
+Several promising directions for future research include:
+\begin{itemize}
+  \item \textbf{Adaptive Lasso}: Using weighted penalties based on initial coefficient estimates
+  \item \textbf{Group Lasso}: Extending Lasso to select groups of variables rather than individual features
+  \item \textbf{Stability Selection}: Combining Lasso with subsampling to improve selection consistency
+  \item \textbf{Non-Convex Penalties}: Exploring alternative penalty functions that reduce bias while maintaining sparsity
+  \item \textbf{Bayesian Approaches}: Developing Bayesian formulations of Lasso with proper uncertainty quantification
+\end{itemize}
+
+\section{Final Thoughts}
+Lasso regression represents a significant advancement in statistical modeling, addressing the dual challenges of prediction accuracy and model interpretability. As data continues to grow in dimension and complexity, methods like Lasso will remain essential tools in the data scientist's toolkit. By understanding both the theoretical foundations and practical considerations of Lasso, researchers can apply this powerful technique effectively across diverse domains.
+
+
+\begin{thebibliography}{9}
+\bibitem{tibshirani1996}
+Tibshirani, R. (1996). Regression shrinkage and selection via the lasso. \textit{Journal of the Royal Statistical Society: Series B (Methodological)}, 58(1), 267-288.
+
+\bibitem{hastie2009}
+Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The elements of statistical learning: data mining, inference, and prediction}. Springer Science \& Business Media.
+
+\bibitem{zou2005}
+Zou, H., \& Hastie, T. (2005). Regularization and variable selection via the elastic net. \textit{Journal of the Royal Statistical Society: Series B (Statistical Methodology)}, 67(2), 301-320.
+
+\bibitem{efron2004}
+Efron, B., Hastie, T., Johnstone, I., \& Tibshirani, R. (2004). Least angle regression. \textit{The Annals of Statistics}, 32(2), 407-499.
+
+
+\bibitem{zou2006}
+Zou, H. (2006). The adaptive lasso and its oracle properties. \textit{Journal of the American Statistical Association}, 101(476), 1418-1429.
+
+\end{thebibliography}
+
+\end{document}
