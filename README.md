@@ -8,26 +8,19 @@ The project studies why ordinary least squares fails in high-dimensional setting
 ## What This Project Covers
 
 The work is structured around three core ideas:
-
 ### 1. Why regularization is needed
 - Ordinary least squares suffers from high variance, overfitting, and instability when predictors are correlated or when the number of features is large 
-
 ### 2. How Lasso works
-- Lasso introduces an L1 penalty on regression coefficients, which shrinks them and can force some of them to exactly zero. This allows Lasso to perform feature selection automatically while still fitting a predictive model 
-
+- Lasso introduces an L1 penalty on regression coefficients, which shrinks them and can force some of them to exactly zero. This allows Lasso to perform feature selection automatically while still fitting a predictive model
 ### 3. Why Lasso is different from Ridge
 - Ridge regression shrinks coefficients but never removes them. Lasso, because of the geometry of the L1 penalty, produces sparse solutions where irrelevant variables disappear from the model 
 
 ## Datasets Used
 
 Two datasets are used to demonstrate the behavior of Lasso.
-
 ### 1. Simulated Experience–Salary Data
-
 - A synthetic dataset is used to illustrate the bias–variance tradeoff. A simple linear model underfits, while a high-degree polynomial overfits. Lasso finds a middle ground by shrinking coefficients and improving generalization performance 
-
 ### 2. Diabetes Dataset
-
 - A real dataset with 442 patients and 10 standardized predictors (age, BMI, blood pressure, and blood serum measurements) is used to show how Lasso performs feature selection. As the penalty parameter increases, weak predictors are eliminated while strong predictors such as BMI and blood pressure remain active 
 
 ## Feature Selection with Lasso
